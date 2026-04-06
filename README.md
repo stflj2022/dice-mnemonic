@@ -32,6 +32,19 @@
 - 24词 = 256bit → 需掷 ≥ 99次
 - 方法：将点数序列哈希 → 截取熵 → BIP39映射
 
+## 文件验证
+
+下载后请验证文件完整性：
+
+```bash
+sha256sum index.html
+```
+
+预期输出：
+```
+8257fb3818ecf7c160c7fd9bc470ecd84b29978a7f316d03b3fb7ab1a9c40fc7  index.html
+```
+
 ## License
 
 MIT
