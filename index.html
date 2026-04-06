@@ -819,6 +819,7 @@ async function updateMnemonic() {
 // ─────────────────────────────────────────
 function addRoll(val) {
   if (val < 1 || val > 6) return;
+  frozenEntropy = null; // 重置冻结熵，允许更新
   rolls.push(val);
   updateUI();
 }
@@ -839,6 +840,7 @@ function submitInput() {
   }
 
   if (added > 0) {
+    frozenEntropy = null; // 重置冻结熵，允许更新
     input.value = '';
     updateUI();
   } else {
@@ -853,6 +855,7 @@ function handleKey(e) {
 
 function undoLast() {
   if (rolls.length > 0) {
+    frozenEntropy = null; // 重置冻结熵，允许更新
     rolls.pop();
     updateUI();
   }
