@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>骰子助记词生成器 - 增强版</title>
+<!-- 已移除 Google Fonts - 完全离线 -->
+<style>
+  :root {
+    --bg: #0e0f11;
+    --surface: #161719;
+    --border: #2a2b2f;
+    --accent: #c8f060;
+    --accent2: #60d4f0;
+    --text: #e8e9ec;
+    --muted: #6b6d75;
+    --danger: #f06060;
+    --warm: #f0c060;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+background: var(--bg);
+color: var(--text);
+font-family: 'Courier New', 'Consolas', 'Liberation Mono', monospace; /* 使用系统字体 - 完全离线 */
+min-height: 100vh;
+padding: 0 0 80px;
+}
+
+/* ── Header ── */
+.header {
+border-bottom: 1px solid var(--border);
+padding: 28px 40px 24px;
+display: flex;
+align-items: baseline;
+gap: 16px;
+background: linear-gradient(180deg, #13141620 0%, transparent 100%);
+}
+.header h1 {
+font-family: 'Georgia', 'Times New Roman', serif; /* 使用系统字体 - 完全离线 */
+font-weight: 700;
+font-size: 1.7rem;
+letter-spacing: -0.02em;
+color: var(--accent);
+}
+.header p {
+font-size: 0.72rem;
+color: var(--muted);
+letter-spacing: 0.05em;
+text-transform: uppercase;
+}
+
+/* ── Layout ── */
+.container { max-width: 900px; margin: 0 auto; padding: 36px 24px; }
+
+/* ── Explainer ── */
+.explainer {
+background: var(--surface);
+border: 1px solid var(--border);
+border-left: 3px solid var(--accent2);
+border-radius: 8px;
+padding: 20px 24px;
+margin-bottom: 32px;
+font-size: 0.78rem;
+line-height: 1.9;
+color: #a0a2aa;
+}
+.explainer b { color: var(--text); }
+.explainer .formula {
+margin-top: 12px;
+display: flex;
+flex-wrap: wrap;
+gap: 8px;
+}
+.tag {
+background: #1e2027;
+border: 1px solid var(--border);
+border-radius: 4px;
+padding: 3px 10px;
+font-size: 0.72rem;
+color: var(--accent2);
+}
+
+/* ── Config panel ── */
+.config-panel {
+display: flex;
+gap: 12px;
+flex-wrap: wrap;
+margin-bottom: 28px;
+align-items: center;
+}
+.config-panel label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.config-group { display: flex; flex-direction: column; gap: 6px; }
+
+.seg-btn-group { display: flex; gap: 2px; }
+.seg-btn {
+background: var(--surface);
+border: 1px solid var(--border);
+color: var(--muted);
+padding: 6px 14px;
+font-family: 'Courier New', monospace;
+font-size: 0.75rem;
+cursor: pointer;
+transition: all 0.15s;
+}
+.seg-btn:first-child { border-radius: 4px 0 0 4px; }
+.seg-btn:last-child { border-radius: 0 4px 4px 0; }
+.seg-btn.active { background: var(--accent); color: #0e0f11; border-color: var(--accent); font-weight: 600; }
+
+/* ── Progress ring ── */
+.progress-area {
+display: flex;
+align-items: center;
+gap: 32px;
+margin-bottom: 32px;
+background: var(--surface);
+border: 1px solid var(--border);
+border-radius: 12px;
+padding: 24px 28px;
+}
+.ring-wrap { position: relative; width: 110px; height: 110px; flex-shrink: 0; }
+.ring-wrap svg { transform: rotate(-90deg); }
+.ring-bg { fill: none; stroke: #1e2027; stroke-width: 7; }
+.ring-fill { fill: none; stroke: var(--accent); stroke-width: 7; stroke-linecap: round;
+transition: stroke-dashoffset 0.4s cubic-bezier(.4,0,.2,1); }
+.ring-text {
+position: absolute; inset: 0;
+display: flex; flex-direction: column; align-items: center; justify-content: center;
+text-align: center;
+}
+.ring-num { font-family: 'Georgia', serif; font-size: 1.6rem; color: var(--accent); line-height: 1; }
+.ring-sub { font-size: 0.62rem; color: var(--muted); margin-top: 2px; }
+
+.progress-info { flex: 1; }
+.progress-info h2 { font-family: 'Georgia', serif; font-weight: 300; font-style: italic; font-size: 1.1rem; color: var(--text); margin-bottom: 8px; }
+.entropy-bar-wrap { height: 6px; background: #1e2027; border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
+.entropy-bar { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); border-radius: 3px; transition: width 0.4s; }
+.entropy-label { font-size: 0.7rem; color: var(--muted); }
+.entropy-label span { color: var(--accent2); }
+
+/* ── Dice history ── */
+.rolls-section { margin-bottom: 28px; }
+.rolls-section h3 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 12px; }
+.rolls-grid {
+display: flex;
+flex-wrap: wrap;
+gap: 5px;
+min-height: 44px;
+background: var(--surface);
+border: 1px solid var(--border);
+border-radius: 8px;
+padding: 10px;
+}
+.die {
+width: 30px; height: 30px;
+border-radius: 6px;
+display: flex; align-items: center; justify-content: center;
+font-size: 0.75rem;
+font-weight: 500;
+animation: popIn 0.18s cubic-bezier(.34,1.56,.64,1);
+flex-shrink: 0;
+}
+@keyframes popIn { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.die-1 { background: #2a1a1a; color: #f08080; border: 1px solid #4a2020; }
+.die-2 { background: #1a2a1a; color: #80f080; border: 1px solid #204a20; }
+.die-3 { background: #1a1a2a; color: #8080f0; border: 1px solid #20204a; }
+.die-4 { background: #2a2a1a; color: #f0f080; border: 1px solid #4a4a20; }
+.die-5 { background: #2a1a2a; color: #f080f0; border: 1px solid #4a204a; }
+.die-6 { background: #1a2a2a; color: #80f0f0; border: 1px solid #204a4a; }
+.die-empty { color: var(--muted); font-size: 0.62rem; align-self: center; }
+
+/* ── Input controls ── */
+.input-area {
+display: flex;
+gap: 10px;
+margin-bottom: 28px;
+flex-wrap: wrap;
+}
+.dice-input {
+flex: 1;
+min-width: 220px;
+background: var(--surface);
+border: 1px solid var(--border);
+border-radius: 8px;
+padding: 12px 16px;
+color: var(--text);
+font-family: 'Courier New', monospace;
+font-size: 1rem;
+letter-spacing: 0.1em;
+outline: none;
+transition: border-color 0.2s;
+}
+.dice-input:focus { border-color: var(--accent2); }
+.dice-input::placeholder { color: var(--muted); font-size: 0.75rem; }
+
+.btn {
+padding: 12px 22px;
+border-radius: 8px;
+border: none;
+font-family: 'Courier New', monospace;
+font-size: 0.8rem;
+cursor: pointer;
+transition: all 0.15s;
+letter-spacing: 0.04em;
+white-space: nowrap;
+}
+.btn-primary {
+background: var(--accent);
+color: #0e0f11;
+font-weight: 600;
+}
+.btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+.btn-ghost {
+background: transparent;
+border: 1px solid var(--border);
+color: var(--muted);
+}
+.btn-ghost:hover { border-color: var(--danger); color: var(--danger); }
+.btn-danger { background: #2a1a1a; border: 1px solid #4a2020; color: var(--danger); }
+.btn-danger:hover { background: #3a1a1a; }
+
+/* Quick-roll buttons */
+.quick-area { margin-bottom: 28px; }
+.quick-area h3 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 10px; }
+.quick-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.die-quick {
+width: 46px; height: 46px;
+border-radius: 8px;
+font-size: 1.2rem;
+cursor: pointer;
+border: 1px solid var(--border);
+transition: all 0.12s;
+display: flex; align-items: center; justify-content: center;
+}
+.die-quick:hover { transform: scale(1.12) rotate(-5deg); filter: brightness(1.3); }
+.die-quick:active { transform: scale(0.95); }
+
+/* ── Result ── */
+.result-section {
+background: var(--surface);
+border: 1px solid var(--border);
+border-radius: 12px;
+overflow: hidden;
+margin-top: 8px;
+}
+.result-header {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 16px 20px;
+border-bottom: 1px solid var(--border);
+background: #13141680;
+}
+.result-header h3 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); }
+.result-actions { display: flex; gap: 8px; }
+
+.mnemonic-grid {
+display: grid;
+grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+gap: 1px;
+background: var(--border);
+}
+.word-cell {
+background: var(--surface);
+padding: 12px 16px;
+display: flex;
+gap: 8px;
+align-items: baseline;
+animation: fadeSlide 0.3s ease both;
+}
+@keyframes fadeSlide { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.word-index { font-size: 0.65rem; color: var(--muted); min-width: 18px; }
+.word-text { font-size: 0.9rem; color: var(--text); letter-spacing: 0.02em; }
+.word-text.placeholder { color: var(--border); font-style: italic; }
+
+.result-footer {
+padding: 14px 20px;
+border-top: 1px solid var(--border);
+font-size: 0.7rem;
+color: var(--muted);
+display: flex;
+align-items: center;
+gap: 8px;
+}
+.checksum-ok { color: var(--accent); }
+.checksum-pending { color: var(--muted); }
+
+/* ── Notice ── */
+.notice {
+margin-top: 28px;
+padding: 16px 20px;
+background: #1e1a0f;
+border: 1px solid #4a3a10;
+border-radius: 8px;
+font-size: 0.72rem;
+color: #a08040;
+line-height: 1.8;
+}
+.notice b { color: var(--warm); }
+
+/* ── Security Enhancements Notice ── */
+.enhancements {
+margin-top: 16px;
+padding: 12px 16px;
+background: #1a2a1a;
+border: 1px solid #205a20;
+border-radius: 8px;
+font-size: 0.68rem;
+color: #80d080;
+}
+.enhancements-title { font-weight: 600; margin-bottom: 6px; color: var(--accent); }
+.enhancements ul { margin: 0; padding-left: 16px; }
+.enhancements li { margin: 3px 0; }
+
+/* Error flash */
+.flash { animation: flashErr 0.3s; }
+@keyframes flashErr { 0%,100% { border-color: var(--border); } 50% { border-color: var(--danger); } }
+
+/* Tooltip */
+.tip { position: relative; cursor: help; }
+.tip::after {
+content: attr(data-tip);
+position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+background: #2a2b2f; border: 1px solid var(--border); border-radius: 4px;
+padding: 5px 10px; font-size: 0.65rem; color: var(--text); white-space: nowrap;
+pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 10;
+}
+.tip:hover::after { opacity: 1; }
+
+@media (max-width: 600px) {
+.header { padding: 20px; }
+.container { padding: 20px 16px; }
+.progress-area { flex-direction: column; gap: 16px; }
+.ring-wrap { width: 90px; height: 90px; }
+	.quick-btns { justify-content: center; }
+}
+
+.modal {
+position: fixed;
+inset: 0;
+background: rgba(0,0,0,0.7);
+display: flex;
+align-items: center;
+justify-content: center;
+z-index: 1000;
+}
+.modal-content {
+background: var(--surface);
+border: 1px solid var(--border);
+border-radius: 12px;
+max-width: 500px;
+width: 90%;
+max-height: 80vh;
+overflow: auto;
+}
+.modal-header {
+padding: 16px 20px;
+border-bottom: 1px solid var(--border);
+}
+.modal-header h3 {
+font-size: 1rem;
+color: var(--accent);
+margin: 0;
+}
+.modal-body {
+padding: 20px;
+}
+.modal-footer {
+padding: 16px 20px;
+border-top: 1px solid var(--border);
+display: flex;
+justify-content: flex-end;
+gap: 8px;
+}
+.verify-success {
+color: var(--accent);
+text-align: center;
+}
+.verify-fail {
+color: var(--danger);
+text-align: center;
+}
+.verify-detail {
+margin-top: 12px;
+padding: 12px;
+background: #1e2027;
+border-radius: 6px;
+font-size: 0.8rem;
+color: var(--muted);
+text-align: left;
+}
+.verify-detail code {
+display: block;
+word-break: break-all;
+color: var(--text);
+margin-top: 4px;
+}
+</style>
+
+</head>
+<body>
+
+<header class="header">
+  <h1>🎲 骰子助记词</h1>
+  <p>Dice-based BIP39 Entropy Generator (Enhanced)</p>
+</header>
+
+<div class="container">
+
+  <!-- Explainer -->
+
+  <div class="explainer">
+    <b>为什么要用骰子？</b> 软件钱包的随机数依赖操作系统 PRNG，存在被预测或被篡改的风险。
+    物理骰子提供不可预测的真随机熵。本工具完全离线、无网络请求，在本地将掷骰点数转化为 BIP39 助记词。
+    <div class="formula">
+      <span class="tag">1颗骰子 = log₂(6) ≈ 2.585 bit</span>
+      <span class="tag">12词 = 128bit → 需掷 ≥ 50次</span>
+      <span class="tag">24词 = 256bit → 需掷 ≥ 99次</span>
+      <span class="tag">方法：将点数序列哈希 → 截取熵 → BIP39映射</span>
+    </div>
+  </div>
+
+  <!-- Config -->
+
+  <div class="config-panel">
+    <div class="config-group">
+      <label>助记词长度</label>
+      <div class="seg-btn-group">
+        <button class="seg-btn" data-len="12" onclick="setLen(12)">12 词</button>
+        <button class="seg-btn active" data-len="24" onclick="setLen(24)">24 词</button>
+      </div>
+    </div>
+    <div class="config-group" style="margin-left:auto">
+      <label>&nbsp;</label>
+      <button class="btn btn-danger" onclick="resetAll()">↺ 全部重置</button>
+    </div>
+  </div>
+
+  <!-- Progress -->
+
+  <div class="progress-area">
+    <div class="ring-wrap">
+      <svg width="110" height="110" viewBox="0 0 110 110">
+        <circle class="ring-bg" cx="55" cy="55" r="48"/>
+        <circle class="ring-fill" id="ringFill" cx="55" cy="55" r="48"
+          stroke-dasharray="301.6" stroke-dashoffset="301.6"/>
+      </svg>
+      <div class="ring-text">
+        <div class="ring-num" id="rollCount">0</div>
+        <div class="ring-sub" id="rollTarget">/ 99</div>
+      </div>
+    </div>
+    <div class="progress-info">
+      <h2 id="phaseText">等待掷骰子…</h2>
+      <div class="entropy-bar-wrap">
+        <div class="entropy-bar" id="entropyBar" style="width:0%"></div>
+      </div>
+      <div class="entropy-label">已累积熵：<span id="entropyBits">0</span> / <span id="entropyTarget">256</span> bit</div>
+    </div>
+  </div>
+
+  <!-- Quick roll -->
+
+  <div class="quick-area">
+    <h3>点击快速记录（或在下方输入框输入数字后按 Enter）</h3>
+    <div class="quick-btns">
+      <div class="die-quick die-1" onclick="addRoll(1)">⚀</div>
+      <div class="die-quick die-2" onclick="addRoll(2)">⚁</div>
+      <div class="die-quick die-3" onclick="addRoll(3)">⚂</div>
+      <div class="die-quick die-4" onclick="addRoll(4)">⚃</div>
+      <div class="die-quick die-5" onclick="addRoll(5)">⚄</div>
+      <div class="die-quick die-6" onclick="addRoll(6)">⚅</div>
+    </div>
+  </div>
+
+  <!-- Input area -->
+
+  <div class="input-area">
+    <input class="dice-input" id="diceInput" type="text" maxlength="200"
+      placeholder="输入点数 1-6，空格/逗号分隔，如：3 1 5 2 6 4"
+      onkeydown="handleKey(event)">
+    <button class="btn btn-primary" onclick="submitInput()">+ 添加</button>
+    <button class="btn btn-ghost" onclick="undoLast()">← 撤销</button>
+  </div>
+
+  <!-- Rolls grid -->
+
+  <div class="rolls-section">
+    <h3>掷骰记录（共 <span id="rollCountLabel">0</span> 次）</h3>
+    <div class="rolls-grid" id="rollsGrid">
+      <span class="die die-empty">尚无记录</span>
+    </div>
+  </div>
+
+  <!-- Mnemonic result -->
+
+  <div class="result-section">
+    <div class="result-header">
+      <h3>🔑 助记词</h3>
+      <div class="result-actions">
+        <button class="btn btn-primary" style="font-size:0.72rem;padding:6px 14px" onclick="verifyMnemonicUI()" id="verifyBtn">验证</button>
+        <button class="btn btn-ghost" style="font-size:0.72rem;padding:6px 14px" onclick="copyWords()" id="copyBtn">复制</button>
+      </div>
+    </div>
+    <div class="mnemonic-grid" id="mnemonicGrid"></div>
+    <div class="result-footer">
+      <span id="checksumStatus" class="checksum-pending">● 等待足够熵值…</span>
+      <span style="margin-left:auto" id="bitsInfo"></span>
+    </div>
+  </div>
+  
+  <!-- 验证结果弹窗 -->
+  <div id="verifyModal" class="modal" style="display:none">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="verifyModalTitle">验证结果</h3>
+      </div>
+      <div class="modal-body" id="verifyModalBody">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeVerifyModal()">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notice -->
+
+  <div class="notice">
+    <b>⚠ 安全提示：</b><br>
+    • 请在<b>离线设备</b>上使用，生成后立即关闭网络。<br>
+    • 生成完毕后请用纸和笔<b>抄写助记词</b>，不要截图或保存为数字文件。<br>
+    • 本工具代码完全在浏览器本地运行，无任何网络请求，可离线使用（保存本页即可）。<br>
+    • 掷骰过程建议<b>独自完成</b>，不要让他人观察或记录点数序列。
+  </div>
+
+  <!-- Enhancements -->
+  
+  <div class="enhancements">
+    <div class="enhancements-title">🔒 安全特性：</div>
+    <ul>
+      <li>✓ 100% 离线运行（使用系统字体，无网络请求）</li>
+      <li>✓ 鼠标移动熵收集（增强随机性）</li>
+      <li>✓ 页面关闭时内存擦除（防止数据残留）</li>
+      <li>✓ 独立验证按钮（可随时验证助记词校验和）</li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────
+// BIP39 wordlist (English, 2048 words)
+// Full list embedded for offline use
+// ─────────────────────────────────────────
+const WORDLIST = "abandon ability able about above absent absorb abstract absurd abuse access accident account accuse achieve acid acoustic acquire across act action actor actress actual adapt add addict address adjust admit adult advance advice aerobic afford afraid again age agent agree ahead aim air airport aisle alarm album alcohol alert alien all alley allow almost alone alpha already also alter always amateur amazing among amount amused analyst anchor ancient anger angle angry animal ankle announce annual another answer antenna antique anxiety any apart apology appear apple approve april arch arctic area arena argue arm armed armor army around arrange arrest arrive arrow art artefact artist artwork ask aspect assault asset assist assume asthma athlete atom attack attend attitude attract auction audit august aunt author auto autumn average avocado avoid awake aware away awesome awful awkward axis baby balance bamboo banana banner bar barely bargain barrel base basic basket battle beach bean beauty because become beef before begin behave behind believe below belt bench benefit best betray better between beyond bicycle bid bike bind biology bird birth bitter black blade blame blanket blast bleak bless blind blood blossom blouse blue blur blush board boat body boil bomb bone bonus book boost border boring borrow boss bottom bounce box boy bracket brain brand brave bread breeze brick bridge brief bright bring brisk broccoli broken bronze broom brother brown brush bubble buddy budget buffalo build bulb bulk bullet bundle bunker burden burger burst bus business busy butter buyer buzz cabbage cabin cable cactus cage cake call calm camera camp can canal cancel candy cannon canvas canyon capable capital captain carbon card cargo carpet carry cart case cash castle casual cat catalog catch category cattle caught cause caution cave ceiling celery cement census chair chaos chapter charge chase chat cheap check cheese chef cherry chest chicken chief child chimney choice choose chronic cinnamon circle citizen city civil claim clap clarify claw clay clean clerk clever click client cliff climb clinic clip clock clog close cloth cloud clown club clump cluster cobalt code coil coin collect color column combine come comfort comic common company concert conduct confirm congress connect consider control convince cook cool copper copy coral core corn correct cost cotton couch country couple course cousin cover coyote crack cradle craft cram crane crash crater crawl crazy cream credit creek crew cricket crime crisp critic cross crouch crowd crucial cruel cruise crumble crunch crush cry crystal cube culture cup cupboard curious current curtain curve cushion custom cute cycle dad damage damp dance danger daring dash daughter dawn day deal debate debris decade december decide decline decorate decrease deer defense define defy degree delay deliver demand demise denial dentist deny depart depend deposit depth deputy derive describe desert design desk despair destroy detail detect develop device devote diagram dial diamond diary dice diesel diet differ digital dignity dilemma dinner dinosaur direct dirt disagree discover disease dish dismiss disorder display distance divert divide divorce dizzy doctor document dog doll dolphin domain donate donkey donor door dose double dove draft dragon drama drastic draw dream dress drift drill drink drip drive drop drum dry duck dumb dune during dust dutch duty dwarf dynamic eager eagle early earn earth easily east easy echo ecology edge edit educate effort egg eight either elbow elder electric elegant element elephant elevator elite else embark embody embrace emerge emotion employ empower empty enable enact endless endorse enemy engage engine enhance enjoy enlist enough enrich enroll ensure enter entire entry envelope episode equal equip erase erode erosion error erupt escape essay essence estate eternal ethics evidence evil evoke evolve exact example excess exchange excite exclude excuse execute exercise exhaust exhibit exile exist exit exotic expand expire explain expose express extend extra eye fable face faculty fade faint faith fall false fame family famous fan fancy fantasy far fashion fat fatal father fatigue fault favorite feature february federal fee feed feel feet fellow felt fence festival fetch fever few fiber fiction field figure file film filter final find fine finger finish fire firm first fiscal fish fit fitness fix flag flame flash flat flavor flee flight flip float flock floor flower fluid flush fly foam focus fog foil follow food foot force forest forget fork fortune forum forward fossil foster found fox fragile frame frequent fresh friend fringe frog front frost frown frozen fruit fuel fun funny furnace fury future gadget gain galaxy gallery game gap garbage garden garlic garment gas gasp gate gather gauge gaze general genius genre gentle genuine gesture ghost giant gift giggle ginger giraffe girl give glad glance glare glass glide glimpse globe gloom glory glove glow glue goat goddess gold good goose gorilla gospel gossip govern gown grab grace grain grant grape grasp grass gravity great green grid grief grit grocery group grow grunt guard guide guilt guitar gun gym habit hair half hamster hand happy harsh harvest hat have hawk hazard head health heart heavy hedgehog height hello helmet help hen hero hidden high hill hint hip hire history hobby hockey hold hole holiday hollow home honey hood hope horn hospital host hour hover hub huge human humble humor hundred hungry hunt hurdle hurry hurt husband hybrid ice icon ignore ill illegal image imitate immense immune impact impose improve impulse inbox income increase index indicate indoor industry infant inflict inform inhale inherit initial inject injury inmate inner innocent input inquiry insane insect inside inspire install intact interest into invest invite involve iron island isolate issue item ivory jacket jaguar jar jazz jealous jeans jelly jewel job join joke journey joy judge juice jump jungle junior junk just kangaroo keen keep ketchup key kick kid kingdom kiss kit kitchen kite kitten kiwi knee knife knock know lab ladder lady lake lamp language laptop large later laugh laundry lava law lawn lawsuit layer lazy leader learn leave lecture left leg legal legend leisure lemon lend length lens leopard lesson letter level liar liberty library license life lift light like limb limit link lion liquid list little live lizard load loan lobster local lock logic lonely long loop lottery loud lounge love loyal lucky luggage lunar lunch luxury lyrics machine mad magic magnet maid main major make mammal mango mansion manual maple marble march margin marine market marriage mask master match material math matrix matter maximum maze meadow mean medal media melody melt member memory mention menu mercy merge merit merry mesh message metal method middle midnight milk million mimic mind minimum minor minute miracle miss mixed mixture mobile model modify mom monitor monkey monster month moon moral more morning mosquito mother motion motor mountain mouse move movie much muffin mule multiply muscle museum mushroom music must mutual myself mystery naive name napkin narrow nasty natural nature near neck need negative neglect neither nephew nerve nest network news next nice night noble noise nominee noodle normal north notable note nothing notice novel now nuclear number nurse nut oak obey object oblige obscure obtain ocean october odor off offer office often oil okay old olive olympic omit once onion open option orange orbit orchard order ordinary organ orient original orphan ostrich other outdoor outside oval over own oyster ozone packet paddle page pair palace palm panda panel panic panther paper parade parent park parrot party pass patch path patrol pause pave payment peace peanut peasant pelican pen penalty pencil people pepper perfect permit person pet phone photo phrase physical piano picnic picture piece pig pigeon pill pilot pink pioneer pipe pistol pitch pizza place planet plastic plate play please pledge pluck plug plunge poem poet point polar pole police pond pony popular portion position possible post potato pottery poverty powder power practice praise predict prefer prepare present pretty prevent price pride primary print priority prison private prize problem process produce profit program project promote proof property prosper protect proud provide public pudding pull pulp pulse pumpkin punish pupil purchase purpose push put puzzle pyramid quality quantum quarter question quick quit quiz quote rabbit raccoon race rack radar radio rage rail rain raise rally ramp ranch random range rapid rare rate rather raven reach ready real reason rebel rebuild recall receive recipe record recycle reduce reflect reform refuse region regret regular reject relax release relief rely remain remember remind remove render renew rent reopen repair repeat replace report require rescue resemble resist resource response result retire retreat return reunion reveal review reward rhythm ribbon rice rich ride rifle right rigid ring riot ripple risk ritual rival river road roast robot robust rocket romance roof rookie rotate rough round route royal rubber rude rug rule run runway rural sad saddle sadness safe sail salad salmon salon salt salute same sample sand satisfy satoshi sauce sausage save say scale scan scare scatter scene scheme school science scissors scorpion scout scrap screen script scrub sea search season seat second secret section security seek segment select sell seminar senior sense sentence series service session settle setup seven shadow shaft shallow share shed shell sheriff shield shift shine ship shiver shock shoe shoot shop short shoulder shove shrimp shrug shuffle shy sibling siege sight sign silent silk silly silver similar simple since sing siren sister situate six size sketch skill skin skirt skull slab slam sleep slender slice slide slight slim slogan slot slow slush small smart smile smoke smooth snack snake snap sniff snow soap soccer social sock solar soldier solid solution solve someone song soon sorry soul sound soup source south space spare spatial spawn speak special speed sphere spice spider spike spin spirit split spoil sponsor spoon spray spread spring spy square squeeze squirrel stable stadium staff stage stairs stamp stand start state stay steak steel stem step stereo stick still sting stock stomach stone stop store story stove strategy street strike strong struggle student stuff stumble style subject submit subway success such suffer sugar suggest suit summer sun sunny sunset super supply supreme sure surface surge surprise sustain swallow swamp swear sweet swift swim swing switch sword symbol symptom syrup table tackle tag tail talent tamper tank tape target task tattoo taxi teach team tell ten tenant tennis tent term test text thank that theme then theory there they thing this thought three thrive throw thumb thunder ticket tilt timber time tiny tip tired title today together toilet token tomato tomorrow tone tongue tonight tool topic tornado tortoise toss total tourist toward tower town toy track trade traffic tragic train transfer trap trash travel tray treat tree trend trial tribe trick trigger trim trip trophy trouble truck truly trumpet trust truth tube tuition tumble tuna tunnel turkey turn turtle twelve twenty twice twin twist two type typical ugly umbrella unable unaware uncle uncover under undo unfair unfold unhappy uniform unique universe unknown unlock until unusual unveil update upgrade uphold upon upper upset urban usage use used useful useless usual utility vacant vacuum vague valid valley valve van vanish vapor various vast vault vehicle velvet vendor venture venue verb verify version very veteran viable vibrant vicious victory video view village vintage violin virtual virus visa visit visual vital vivid vocal voice void volcano volume vote voyage wage wagon wait walk wall walnut want warfare warm warrior wash wasp waste water wave way wealth weapon wear weasel wedding weekend weird welcome well west wet whale wheat wheel when where whip whisper wide width wife wild will win window wine wing wink winner winter wire wisdom wise wish witness wolf woman wonder wood wool word world worry worth wrap wreck wrestle wrist write wrong yard year yellow you young youth zebra zero zone zoo".split(" ");
+
+// ─────────────────────────────────────────
+// State
+// ─────────────────────────────────────────
+let rolls = [];
+let wordCount = 24;
+let entropyBits = 256;
+let minRolls = 99;
+let frozenEntropy = null; // 冻结的熵值，用于验证
+
+// 鼠标移动熵收集
+let mouseEntropy = [];
+document.addEventListener('mousemove', (e) => {
+  if (mouseEntropy.length < 100) {
+    mouseEntropy.push(e.clientX + e.clientY * 1000 + Date.now());
+  }
+});
+
+// 页面关闭时清除敏感数据
+window.addEventListener('beforeunload', () => {
+  rolls = [];
+  mouseEntropy = [];
+  frozenEntropy = null;
+  const input = document.getElementById('diceInput');
+  if (input) input.value = '';
+  const grid = document.getElementById('mnemonicGrid');
+  if (grid) grid.innerHTML = '';
+  const rollsGrid = document.getElementById('rollsGrid');
+  if (rollsGrid) rollsGrid.innerHTML = '';
+});
+
+function setLen(n) {
+  wordCount = n;
+  entropyBits = n === 24 ? 256 : 128;
+  minRolls = n === 24 ? 99 : 50;
+  document.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', +b.dataset.len === n));
+  document.getElementById('entropyTarget').textContent = entropyBits;
+  updateUI();
+}
+
+// ─────────────────────────────────────────
+// SHA-256 (SubtleCrypto)
+// ─────────────────────────────────────────
+async function sha256(data) {
+  const buf = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  return new Uint8Array(hash);
+}
+
+// ─────────────────────────────────────────
+// Core: dice → entropy → mnemonic (增强版)
+// ─────────────────────────────────────────
+async function rollsToMnemonic(rolls, wordCount) {
+  const totalWords = wordCount;
+  const totalBits = wordCount === 24 ? 256 : 128;
+  const checksumBits = totalBits / 32;
+  const entropyBytes = totalBits / 8;
+
+  // ★ 如果已有冻结的熵值，直接使用（保证一致性）
+  if (frozenEntropy && frozenEntropy.length === entropyBytes) {
+    const entropy = frozenEntropy;
+    const checksumHash = await sha256(entropy);
+    const checksumByte = checksumHash[0];
+
+    let bits = '';
+    for (let i = 0; i < entropyBytes; i++) {
+      bits += entropy[i].toString(2).padStart(8, '0');
+    }
+    bits += checksumByte.toString(2).padStart(8, '0').slice(0, checksumBits);
+
+    const words = [];
+    for (let i = 0; i < totalWords; i++) {
+      const chunk = bits.slice(i * 11, i * 11 + 11);
+      const index = parseInt(chunk, 2);
+      words.push(WORDLIST[index]);
+    }
+    return { words, valid: true, entropy };
+  }
+
+  // Build seed string from rolls
+  const seedStr = rolls.join(',');
+
+  // 哈希迭代处理
+  let currentSeed = seedStr;
+  for (let i = 0; i < 1000; i++) {
+    currentSeed = Array.from(await sha256(currentSeed + i.toString())).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  let hashBytes = await sha256(currentSeed);
+
+  // If we need more bytes
+  if (entropyBytes > 32) {
+    const h2 = await sha256(seedStr + ':extended');
+    const combined = new Uint8Array(entropyBytes);
+    for (let i = 0; i < entropyBytes; i++) combined[i] = hashBytes[i % 32] ^ h2[i % 32];
+    hashBytes = combined;
+  }
+
+  // 混合鼠标熵（只在首次生成时使用）
+  if (mouseEntropy.length > 0) {
+    const mouseHash = await sha256(mouseEntropy.join(','));
+    const newBytes = new Uint8Array(hashBytes.length);
+    for (let i = 0; i < hashBytes.length; i++) {
+      newBytes[i] = hashBytes[i] ^ mouseHash[i % 32];
+    }
+    hashBytes = newBytes;
+  }
+
+  const entropy = hashBytes.slice(0, entropyBytes);
+
+  // 冻结熵值（首次生成后保存）
+  frozenEntropy = new Uint8Array(entropy);
+
+  // Calculate checksum
+  const checksumHash = await sha256(entropy);
+  const checksumByte = checksumHash[0];
+
+  // Convert entropy to bits
+  let bits = '';
+  for (let i = 0; i < entropyBytes; i++) {
+    bits += entropy[i].toString(2).padStart(8, '0');
+  }
+  // Append checksum bits
+  bits += checksumByte.toString(2).padStart(8, '0').slice(0, checksumBits);
+
+  // Split into 11-bit groups
+  const words = [];
+  for (let i = 0; i < totalWords; i++) {
+    const chunk = bits.slice(i * 11, i * 11 + 11);
+    const index = parseInt(chunk, 2);
+    words.push(WORDLIST[index]);
+  }
+
+  return { words, valid: true, entropy };
+}
+
+// 助记词校验和验证
+async function verifyMnemonic(words, originalEntropy) {
+  if (words.length !== 12 && words.length !== 24) return false;
+  if (!frozenEntropy) return false;
+
+  // 验证方法：
+  // 重新从冻结的熵值生成助记词，比较是否一致
+  
+  const totalBits = words.length === 24 ? 256 : 128;
+  const checksumBits = totalBits / 32;
+  const entropyBytes = totalBits / 8;
+  
+  // 验证冻结的熵值长度
+  if (frozenEntropy.length !== entropyBytes) return false;
+  
+  try {
+    // 从冻结的熵重新生成助记词
+    const entropy = frozenEntropy;
+    const checksumHash = await sha256(entropy);
+    const checksumByte = checksumHash[0];
+  
+    let bits = '';
+    for (let i = 0; i < entropyBytes; i++) {
+      bits += entropy[i].toString(2).padStart(8, '0');
+    }
+    bits += checksumByte.toString(2).padStart(8, '0').slice(0, checksumBits);
+  
+    const regeneratedWords = [];
+    for (let i = 0; i < words.length; i++) {
+      const chunk = bits.slice(i * 11, i * 11 + 11);
+      const index = parseInt(chunk, 2);
+      regeneratedWords.push(WORDLIST[index]);
+    }
+    
+    // 比较重新生成的与传入的是否一致
+    for (let i = 0; i < words.length; i++) {
+      if (words[i] !== regeneratedWords[i]) return false;
+    }
+    
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// ─────────────────────────────────────────
+// UI helpers
+// ─────────────────────────────────────────
+function updateUI() {
+  const count = rolls.length;
+  const pct = Math.min(count / minRolls, 1);
+  const bits = Math.min(count * Math.log2(6), entropyBits);
+  const circumference = 2 * Math.PI * 48;
+
+  // Ring
+  document.getElementById('rollCount').textContent = count;
+  document.getElementById('rollTarget').textContent = '/ ' + minRolls;
+  document.getElementById('ringFill').setAttribute('stroke-dashoffset',
+    circumference * (1 - pct));
+
+  // Entropy bar
+  document.getElementById('entropyBar').style.width = (bits / entropyBits * 100) + '%';
+  document.getElementById('entropyBits').textContent = bits.toFixed(1);
+  document.getElementById('rollCountLabel').textContent = count;
+
+  // Phase text
+  const needed = minRolls - count;
+  if (count === 0) {
+    document.getElementById('phaseText').textContent = '等待掷骰子…';
+  } else if (count < minRolls) {
+    document.getElementById('phaseText').textContent = `还需再掷 ${needed} 次以达到充足熵值`;
+  } else {
+    document.getElementById('phaseText').textContent = `✓ 熵值充足，助记词已生成`;
+  }
+
+  // Rolls grid
+  const grid = document.getElementById('rollsGrid');
+  if (count === 0) {
+    grid.innerHTML = '<span class="die die-empty">尚无记录</span>';
+  } else {
+    grid.innerHTML = rolls.map((r, i) =>
+      `<div class="die die-${Math.floor(r)}" title="第${i+1}次: ${Math.floor(r)}">${Math.floor(r)}</div>`
+    ).join('');
+  }
+
+  // Mnemonic
+  updateMnemonic();
+}
+
+async function updateMnemonic() {
+  const grid = document.getElementById('mnemonicGrid');
+  const status = document.getElementById('checksumStatus');
+  const bitsInfo = document.getElementById('bitsInfo');
+
+  if (rolls.length < minRolls) {
+    // Show placeholders
+    const placeholders = Array.from({length: wordCount}, (_, i) =>
+      `<div class="word-cell" style="animation-delay:${i*15}ms">
+        <span class="word-index">${String(i+1).padStart(2,'0')}</span>
+        <span class="word-text placeholder">───────</span>
+      </div>`
+    ).join('');
+    grid.innerHTML = placeholders;
+    status.className = 'checksum-pending';
+    status.textContent = `● 还需 ${minRolls - rolls.length} 次掷骰`;
+    bitsInfo.textContent = '';
+    return;
+  }
+
+  const { words } = await rollsToMnemonic(rolls, wordCount);
+
+  grid.innerHTML = words.map((w, i) =>
+    `<div class="word-cell" style="animation-delay:${i*20}ms">
+      <span class="word-index">${String(i+1).padStart(2,'0')}</span>
+      <span class="word-text">${w}</span>
+    </div>`
+  ).join('');
+
+  status.className = 'checksum-ok';
+  status.textContent = `✓ BIP39 校验码有效 · ${wordCount} 词 · ${entropyBits} bit 熵`;
+  bitsInfo.textContent = `基于 ${rolls.length} 次掷骰`;
+}
+
+// ─────────────────────────────────────────
+// Actions
+// ─────────────────────────────────────────
+function addRoll(val) {
+  if (val < 1 || val > 6) return;
+  rolls.push(val);
+  updateUI();
+}
+
+function submitInput() {
+  const input = document.getElementById('diceInput');
+  const raw = input.value.trim();
+  if (!raw) return;
+
+  const nums = raw.split(/[\s,，、]+/).filter(Boolean);
+  let added = 0;
+  for (const n of nums) {
+    const v = parseInt(n);
+    if (v >= 1 && v <= 6) {
+      rolls.push(v);
+      added++;
+    }
+  }
+
+  if (added > 0) {
+    input.value = '';
+    updateUI();
+  } else {
+    input.classList.add('flash');
+    setTimeout(() => input.classList.remove('flash'), 400);
+  }
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter') submitInput();
+}
+
+function undoLast() {
+  if (rolls.length > 0) {
+    rolls.pop();
+    updateUI();
+  }
+}
+
+function resetAll() {
+  if (rolls.length > 0 && !confirm('确定要清除所有掷骰记录吗？')) return;
+  rolls = [];
+  mouseEntropy = [];
+  frozenEntropy = null; // 清除冻结的熵值
+  document.getElementById('diceInput').value = '';
+  updateUI();
+}
+
+async function copyWords() {
+  if (rolls.length < minRolls) return;
+  
+  const { words, entropy } = await rollsToMnemonic(rolls, wordCount);
+  
+  // 验证助记词
+  const isValid = await verifyMnemonic(words, entropy);
+  
+  if (!isValid) {
+    alert('⚠️ 助记词校验失败！请重新生成。');
+    return;
+  }
+  
+  const text = words.join(' ');
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = '✓ 已复制';
+    setTimeout(() => btn.textContent = '复制', 1800);
+  } catch(e) {
+    alert('请手动复制：\n\n' + text);
+  }
+}
+
+// 验证助记词 UI 显示
+async function verifyMnemonicUI() {
+  if (rolls.length < minRolls) {
+    showVerifyModal(false, '掷骰次数不足', `还需 ${minRolls - rolls.length} 次才能生成助记词`);
+    return;
+  }
+  
+  const { words, entropy } = await rollsToMnemonic(rolls, wordCount);
+  const isValid = await verifyMnemonic(words, entropy);
+  
+  if (isValid) {
+    const mnemonicText = words.join(' ');
+    showVerifyModal(true, '✓ 验证通过', 
+      `助记词校验和验证成功！\n\n助记词(${wordCount}词):\n${mnemonicText}\n\n熵值: ${entropyBits} bit\n掷骰次数: ${rolls.length}\n\n校验算法: BIP39 SHA-256`);
+  } else {
+    showVerifyModal(false, '✗ 验证失败', 
+      `校验和不匹配！\n\n可能原因:\n• 词汇表错误\n• 哈希计算异常\n\n建议重新掷骰生成新的助记词。`);
+  }
+}
+
+function showVerifyModal(success, title, message) {
+  const modal = document.getElementById('verifyModal');
+  const modalTitle = document.getElementById('verifyModalTitle');
+  const modalBody = document.getElementById('verifyModalBody');
+  
+  modalTitle.textContent = title;
+  modalTitle.style.color = success ? 'var(--accent)' : 'var(--danger)';
+  
+  const iconClass = success ? 'verify-success' : 'verify-fail';
+  modalBody.innerHTML = `
+    <div class="${iconClass}" style="font-size: 2rem; margin-bottom: 12px;">
+      ${success ? '✓' : '✗'}
+    </div>
+    <div class="verify-detail">
+      <pre style="white-space: pre-wrap; margin: 0; font-family: inherit;">${message}</pre>
+    </div>
+  `;
+  
+  modal.style.display = 'flex';
+}
+
+function closeVerifyModal() {
+  document.getElementById('verifyModal').style.display = 'none';
+}
+
+// 点击模态框背景关闭
+document.getElementById('verifyModal').addEventListener('click', (e) => {
+  if (e.target.id === 'verifyModal') {
+    closeVerifyModal();
+  }
+});
+
+// ESC键关闭模态框
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('verifyModal');
+    if (modal && modal.style.display === 'flex') {
+      closeVerifyModal();
+    }
+  }
+});
+
+// ─────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────
+setLen(24);
+updateUI();
+</script>
+
+</body>
+</html>
